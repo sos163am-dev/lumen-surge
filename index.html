@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>LUMEN SURGE — your mouse is the only light. Same hidden sparks for everyone. Today.</title>
+<meta name="description" content="Pitch black. Your cursor is the only light. Sweep it to reveal a hidden nebula and find today's sparks — the SAME sparks hide everywhere on Earth. Don't poke the shadow spikes. The deeper you go, the smaller your light.">
+<meta property="og:title" content="LUMEN SURGE">
+<meta property="og:description" content="Your mouse is the only light. Everyone hunts the SAME hidden sparks today. How deep into the dark can you go?">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23040208'/><circle cx='50' cy='50' r='26' fill='url(%23g)'/><defs><radialGradient id='g'><stop offset='0' stop-color='%23FFFB82'/><stop offset='1' stop-color='%232DFFCE' stop-opacity='0'/></radialGradient></defs><circle cx='50' cy='50' r='5' fill='%23FFFB82'/></svg>">
+<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+  :root {
+    --disp: Bahnschrift, 'Bahnschrift SemiCondensed', 'Arial Narrow', 'Segoe UI', sans-serif;
+    --mono: Consolas, 'Cascadia Code', monospace;
+    --sun: #FFFB82; --aqua: #2DFFCE;
+  }
+  html,body { width:100%; height:100%; overflow:hidden; background:#040208; font-family:'Segoe UI',system-ui,sans-serif; }
+  #game { position:fixed; inset:0; display:block; touch-action:none; cursor:none; }
+  body.menuMode #game { cursor:none; }
+
+  #hud { position:fixed; top:0; left:0; right:0; display:flex; justify-content:space-between; align-items:flex-start; padding:14px 16px; pointer-events:none; z-index:5; }
+  .hcell { text-align:center; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12); border-bottom-color:rgba(0,0,0,.5); border-radius:14px; padding:7px 18px 5px; backdrop-filter:blur(4px); }
+  .hcell .v { font-family:var(--disp); font-stretch:condensed; font-size:26px; font-weight:800; color:#fdfbe8; text-shadow:0 0 8px rgba(45,255,206,.35); font-variant-numeric:tabular-nums; letter-spacing:1px; }
+  .hcell .l { font-family:var(--mono); font-size:9.5px; color:#8fa89f; text-transform:uppercase; letter-spacing:2.5px; }
+  #lamps { position:fixed; top:14px; left:50%; transform:translateX(-50%); display:flex; gap:8px; z-index:5; pointer-events:none; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12); border-bottom-color:rgba(0,0,0,.5); border-radius:14px; padding:6px 14px; backdrop-filter:blur(4px); }
+  #lamps span { font-size:19px; filter:drop-shadow(0 0 5px rgba(255,251,130,.6)); }
+  #lamps span.off { opacity:.2; filter:grayscale(1); }
+  #hint { position:fixed; bottom:24px; left:0; right:0; text-align:center; font-size:14px; color:#cfe8de; letter-spacing:.5px; pointer-events:none; z-index:5; text-shadow:0 1px 4px #000; }
+
+  .overlay { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:10; color:#fff; text-align:center; padding:20px; overflow-y:auto; pointer-events:none; }
+  .overlay > * { pointer-events:auto; }
+  .panel { background:rgba(6,3,14,.72); border:1px solid rgba(45,255,206,.22); border-top-color:rgba(255,251,130,.35); border-bottom-color:rgba(0,0,0,.8); border-radius:22px; padding:26px 30px; backdrop-filter:blur(6px); box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 20px 60px rgba(0,0,0,.6); max-width:560px; }
+  .hidden { display:none !important; }
+  h1 { font-family:var(--disp); font-stretch:condensed; font-size:clamp(36px,8vw,64px); font-weight:800; letter-spacing:5px;
+    background:linear-gradient(100deg,var(--sun) 20%,var(--aqua) 80%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 0 18px rgba(45,255,206,.35)); }
+  .tag { color:#cfe8de; font-size:15px; margin:6px 0 14px; letter-spacing:.4px; max-width:46ch; }
+  .daily { border:1px solid rgba(45,255,206,.3); border-top-color:rgba(255,251,130,.4); border-bottom-color:rgba(0,0,0,.8); border-radius:14px; padding:10px 20px; margin:0 auto 12px; background:rgba(45,255,206,.05); font-size:14px; box-shadow:inset 0 1px 0 rgba(255,255,255,.06); }
+  .daily b { color:var(--aqua); }
+  .daily .cd { color:#ffe98a; font-size:12.5px; margin-top:3px; }
+  .stats { display:flex; gap:22px; margin-bottom:12px; flex-wrap:wrap; justify-content:center; }
+  .stat { text-align:center; min-width:66px; }
+  .stat .v { font-family:var(--disp); font-stretch:condensed; font-size:24px; font-weight:800; color:#fff; text-shadow:0 0 12px rgba(45,255,206,.5); }
+  .stat .l { font-size:10px; color:#8fa89f; text-transform:uppercase; letter-spacing:2px; margin-top:2px; }
+  .btnrow { display:flex; gap:10px; margin:0 0 12px; flex-wrap:wrap; justify-content:center; }
+  .btn2 { font-size:14px; font-weight:600; color:#e8fff7; background:rgba(255,255,255,.06); border:1px solid rgba(45,255,206,.4); border-bottom-color:rgba(0,0,0,.7); border-radius:30px; padding:10px 20px; cursor:pointer; letter-spacing:.5px; box-shadow:inset 0 1px 0 rgba(255,255,255,.1); }
+  .btn2:active { background:rgba(45,255,206,.22); }
+  .cta { font-family:var(--disp); font-stretch:condensed; font-size:24px; font-weight:800; color:#0a1410; background:linear-gradient(180deg,#fffce0,var(--sun) 30%,var(--aqua)); border:none; border-radius:44px; padding:18px 52px; cursor:pointer; letter-spacing:2px; box-shadow:0 0 24px rgba(45,255,206,.4), inset 0 2px 0 rgba(255,255,255,.6), inset 0 -3px 0 rgba(0,0,0,.25), 0 6px 16px rgba(0,0,0,.5); animation:pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { transform:scale(1.04); box-shadow:0 0 34px rgba(255,251,130,.5), inset 0 2px 0 rgba(255,255,255,.6), inset 0 -3px 0 rgba(0,0,0,.25), 0 6px 16px rgba(0,0,0,.5);} }
+  .howto { margin-top:12px; color:#8fa89f; font-size:12.5px; line-height:1.8; }
+  #shop { display:flex; gap:12px; margin-bottom:12px; justify-content:center; }
+  .sw { width:46px; height:46px; border-radius:50%; cursor:pointer; border:2px solid rgba(255,255,255,.22); border-bottom-color:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; color:#ffe98a; text-shadow:0 1px 3px #000; padding:0; box-shadow:inset 0 1px 0 rgba(255,255,255,.15); }
+  .sw.sel { outline:3px solid #fff; }
+  .sw.locked { opacity:.5; }
+
+  #rScore { font-family:var(--disp); font-stretch:condensed; font-size:60px; font-weight:800; color:#fff; text-shadow:0 0 16px rgba(255,251,130,.55); font-variant-numeric:tabular-nums; letter-spacing:2px; }
+  #newbest { color:#7dffb8; font-weight:800; letter-spacing:3px; font-size:15px; min-height:22px; text-shadow:0 0 14px #7dffb8; }
+  #coinsEarned { color:#ffe98a; font-weight:800; margin-bottom:8px; text-shadow:0 0 10px #ffb300; }
+
+  #toast { position:fixed; bottom:66px; left:50%; transform:translateX(-50%); background:rgba(255,251,130,.95); color:#0a1410; font-weight:700; padding:10px 26px; border-radius:30px; font-size:14px; z-index:50; transition:opacity .4s; opacity:0; pointer-events:none; }
+  #streakChip { position:fixed; bottom:18px; left:16px; z-index:6; color:#ffe98a; font-size:13px; font-weight:700; text-shadow:0 0 10px #ff8800; pointer-events:none; }
+  #mute { position:fixed; bottom:18px; right:16px; z-index:20; font-size:20px; background:none; border:none; cursor:pointer; filter:drop-shadow(0 0 6px rgba(45,255,206,.6)); }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud" class="hidden">
+  <div class="hcell"><div class="v" id="scoreV">0</div><div class="l">score</div></div>
+  <div class="hcell"><div class="v" id="lvlV">1</div><div class="l">depth</div></div>
+</div>
+<div id="lamps" class="hidden"></div>
+<div id="hint" class="hidden"></div>
+<div id="streakChip"></div>
+<button id="mute">🔊</button>
+
+<div id="menu" class="overlay">
+  <div class="panel">
+    <h1>LUMEN SURGE</h1>
+    <div class="tag">🔦 Pitch black. <b style="color:var(--sun)">Your mouse is the only light.</b> Sweep it, reveal the hidden sky, collect today's sparks — and don't poke the sleeping shadow spikes.</div>
+    <button class="cta" id="playBtn">🔦 LIGHT IT UP</button>
+    <div class="daily" style="margin-top:14px">
+      <div>🌍 The <b>same sparks</b> hide everywhere on Earth today</div>
+      <div class="cd">new sky in <span id="cd1">--:--</span></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="v" id="mTodayBest">0</div><div class="l">today's best</div></div>
+      <div class="stat"><div class="v" id="mAllBest">0</div><div class="l">all-time</div></div>
+      <div class="stat"><div class="v" id="mStreakD">0</div><div class="l">day streak</div></div>
+    </div>
+    <div class="btnrow"><span class="btn2" id="coinTotal" style="cursor:default">🪙 0</span></div>
+    <div id="shop"></div>
+    <div class="howto">💡×5 lamps · poking a shadow spike cracks one · every depth your light gets SMALLER<br>find all 10 sparks to go deeper · chain finds within 2s for combo</div>
+  </div>
+</div>
+
+<div id="results" class="overlay hidden">
+  <div class="panel">
+    <div id="newbest"></div>
+    <div id="rScore">0</div>
+    <div class="tag" id="rMsg">the dark got you.</div>
+    <div id="coinsEarned"></div>
+    <div class="stats">
+      <div class="stat"><div class="v" id="rDepth">1</div><div class="l">depth</div></div>
+      <div class="stat"><div class="v" id="rSparks">0</div><div class="l">sparks</div></div>
+      <div class="stat"><div class="v" id="rCombo">0</div><div class="l">best combo</div></div>
+      <div class="stat"><div class="v" id="rTodayBest">0</div><div class="l">today's best</div></div>
+      <div class="stat"><div class="v" id="rStreak">0</div><div class="l">day streak</div></div>
+    </div>
+    <button class="cta" id="againBtn">🔦 RELIGHT</button>
+    <div class="btnrow" style="margin-top:14px">
+      <button class="btn2" id="shareBtn">📣 Challenge a friend</button>
+      <button class="btn2" id="copyBtn">🔗 Copy link + score</button>
+      <button class="btn2" id="menuBtn">🏠 menu</button>
+    </div>
+    <div class="howto">same sparks for everyone until <span id="cd2">--:--</span></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* ============================================================
+   LUMEN SURGE — your mouse is the only light.
+   hi3d.ai-style cursor spotlight reveals a hidden nebula;
+   find the daily seeded sparks, avoid shadow spikes, the light
+   shrinks every depth. 5 lamps, combos, coins, torch shop,
+   streaks, CrazyGames SDK. Single file. No assets.
+   ============================================================ */
+
+// ---------- daily seed ----------
+const now = new Date();
+const dateStr = now.getUTCFullYear() + '-' + String(now.getUTCMonth()+1).padStart(2,'0') + '-' + String(now.getUTCDate()).padStart(2,'0');
+function hashStr(s){ let h = 2166136261; for (let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function mulberry32(a){ return function(){ a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+
+// ---------- persistence ----------
+const LS = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+};
+let coins    = LS.get('lu_coins', 0);
+let owned    = LS.get('lu_owned', [0]);
+let torchIdx = LS.get('lu_torch', 0);
+let muted    = LS.get('lu_muted', false);
+const TORCHES = [
+  { n:'SUNBEAM', a:'#FFFB82', b:'#2DFFCE', cost:0 },
+  { n:'CYAN',    a:'#9ff3ff', b:'#0077ff', cost:300 },
+  { n:'MAGENTA', a:'#ff9df0', b:'#7a2dff', cost:700 },
+  { n:'EMBER',   a:'#ffd24d', b:'#ff4d00', cost:1200 },
+  { n:'GHOST',   a:'#ffffff', b:'#a0c0ff', cost:2000 }
+];
+if (!owned.includes(torchIdx)) torchIdx = 0;
+let allBest   = LS.get('lu_best_all', 0);
+let todayBest = LS.get('lu_best_' + dateStr, 0);
+
+// ---------- day streak ----------
+(function updateStreak(){
+  const last = LS.get('lu_last_day', '');
+  let streak = LS.get('lu_streak', 0);
+  if (last !== dateStr) {
+    const y = new Date(now); y.setUTCDate(y.getUTCDate() - 1);
+    const yStr = y.getUTCFullYear() + '-' + String(y.getUTCMonth()+1).padStart(2,'0') + '-' + String(y.getUTCDate()).padStart(2,'0');
+    streak = (last === yStr) ? streak + 1 : 1;
+    LS.set('lu_streak', streak); LS.set('lu_last_day', dateStr);
+  }
+})();
+const dayStreak = LS.get('lu_streak', 1);
+
+// ---------- CrazyGames SDK (safe no-op outside their platform) ----------
+const CG = { sdk: null, lastAd: 0 };
+window.addEventListener('load', async () => {
+  try { if (window.CrazyGames && window.CrazyGames.SDK) { await window.CrazyGames.SDK.init(); CG.sdk = window.CrazyGames.SDK; } } catch(e){}
+});
+function cgGameplayStart(){ try { CG.sdk && CG.sdk.game.gameplayStart(); } catch(e){} }
+function cgGameplayStop(){ try { CG.sdk && CG.sdk.game.gameplayStop(); } catch(e){} }
+function cgHappy(){ try { CG.sdk && CG.sdk.game.happytime(); } catch(e){} }
+function cgMidgameAd(){
+  const nowMs = Date.now();
+  if (!CG.sdk || nowMs - CG.lastAd < 90000) return;
+  CG.lastAd = nowMs;
+  const wasMuted = muted;
+  try {
+    CG.sdk.ad.requestAd('midgame', {
+      adStarted:  () => { muted = true; },
+      adFinished: () => { muted = wasMuted; },
+      adError:    () => { muted = wasMuted; }
+    });
+  } catch(e) { muted = wasMuted; }
+}
+
+// ---------- canvas ----------
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let W = 0, H = 0;
+let nebula = null;   // offscreen hidden sky
+function resize(){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  buildNebula();
+}
+// hidden colorful sky — SEEDED: everyone reveals the same picture today
+function buildNebula(){
+  nebula = document.createElement('canvas');
+  nebula.width = W; nebula.height = H;
+  const g = nebula.getContext('2d');
+  const nr = mulberry32(hashStr('lumen-sky-' + dateStr));
+  g.fillStyle = '#07031a'; g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 16; i++) {
+    const x = nr() * W, y = nr() * H, r = (0.15 + nr() * 0.3) * Math.max(W, H);
+    const hue = [265, 200, 165, 320, 45][Math.floor(nr() * 5)];
+    const bg = g.createRadialGradient(x, y, 0, x, y, r);
+    bg.addColorStop(0, 'hsla(' + hue + ',85%,' + (38 + nr() * 20) + '%,.5)');
+    bg.addColorStop(1, 'hsla(' + hue + ',85%,20%,0)');
+    g.fillStyle = bg;
+    g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+  }
+  for (let i = 0; i < 240; i++) {
+    const x = nr() * W, y = nr() * H, s = nr();
+    g.globalAlpha = 0.3 + s * 0.7;
+    g.fillStyle = s > 0.85 ? '#fffce0' : '#cfe0ff';
+    g.beginPath(); g.arc(x, y, s > 0.85 ? 1.6 : 0.9, 0, 7); g.fill();
+  }
+  g.globalAlpha = 1;
+}
+window.addEventListener('resize', resize); resize();
+
+// ---------- run state ----------
+const MAX_LAMPS = 5, SPARKS_PER = 10;
+let state = 'menu';               // menu | play | results
+let rng, sparks = [], spikes = [], level = 1, score = 0, lamps = MAX_LAMPS;
+let found = 0, totalFound = 0, combo = 0, bestCombo = 0, lastFind = 0;
+let particles = [], floats = [], shake = 0;
+let mx = -999, my = -999, lightR = 0, targetR = 0;
+
+function baseR(){ return Math.min(W, H) * 0.30; }
+function layout(){
+  sparks = []; spikes = [];
+  for (let i = 0; i < SPARKS_PER; i++)
+    sparks.push({ nx: 0.07 + rng() * 0.86, ny: 0.1 + rng() * 0.8, got: false, tw: rng() * 6.28 });
+  const nSpikes = Math.min(9, 2 + level);
+  for (let i = 0; i < nSpikes; i++)
+    spikes.push({ nx: 0.07 + rng() * 0.86, ny: 0.1 + rng() * 0.8, flash: 0, rot: rng() * 6.28 });
+  found = 0;
+  targetR = Math.max(80, baseR() * Math.pow(0.9, level - 1));
+  hintEl.textContent = level === 1 ? 'Sweep your light. Click the sparks ✦. Avoid the spiky shadows.' : '';
+}
+function newRun(){
+  rng = mulberry32(hashStr('lumen-surge-' + dateStr));
+  level = 1; score = 0; lamps = MAX_LAMPS;
+  totalFound = 0; combo = 0; bestCombo = 0; lastFind = 0;
+  particles = []; floats = [];
+  layout();
+  lightR = targetR;
+  state = 'play';
+  show(menuEl, false); show(resultsEl, false);
+  show(hudEl, true); show(lampsEl, true); show(hintEl, true);
+  scoreV.textContent = '0'; lvlV.textContent = '1';
+  renderLamps();
+  cgGameplayStart();
+}
+function renderLamps(){
+  lampsEl.innerHTML = '';
+  for (let i = 0; i < MAX_LAMPS; i++) {
+    const s = document.createElement('span');
+    s.textContent = '💡';
+    if (i >= lamps) s.className = 'off';
+    lampsEl.appendChild(s);
+  }
+}
+function endRun(){
+  state = 'results';
+  cgGameplayStop();
+  show(hudEl, false); show(lampsEl, false); show(hintEl, false);
+  const earned = Math.floor(score / 25);
+  coins += earned; LS.set('lu_coins', coins);
+  document.getElementById('coinsEarned').textContent = earned > 0 ? '+' + earned + ' 🪙  (total: ' + coins + ')' : '';
+  let isNew = '';
+  if (score > todayBest) { todayBest = score; LS.set('lu_best_' + dateStr, score); isNew = '★ TODAY\'S NEW BEST ★'; }
+  if (score > allBest)   { allBest = score;  LS.set('lu_best_all', score);       isNew = '🏆 ALL-TIME RECORD 🏆'; }
+  document.getElementById('newbest').textContent = isNew;
+  document.getElementById('rScore').textContent = score;
+  document.getElementById('rDepth').textContent = level;
+  document.getElementById('rSparks').textContent = totalFound;
+  document.getElementById('rCombo').textContent = 'x' + bestCombo;
+  document.getElementById('rTodayBest').textContent = todayBest;
+  document.getElementById('rStreak').textContent = dayStreak + '🔥';
+  const msgs = level >= 5 ? ['deep-dark legend.', 'your light never lied.', 'the shadows tell stories about you.']
+             : level >= 3 ? ['the dark is learning your name.', 'solid dive. deeper next time?', 'your lamp did well.']
+             : ['the dark got you.', 'spiky little liars.', 'one more light — you know the sky now.'];
+  document.getElementById('rMsg').textContent = msgs[Math.floor(Math.random() * msgs.length)];
+  if (isNew) cgHappy();
+  setTimeout(() => { show(resultsEl, true); cgMidgameAd(); }, 350);
+}
+
+// ---------- interaction ----------
+function tryClick(x, y){
+  if (state !== 'play') return;
+  const t = performance.now();
+  // spark?
+  for (const sp of sparks) {
+    if (sp.got) continue;
+    const sx = sp.nx * W, sy = sp.ny * H;
+    if (Math.hypot(sx - x, sy - y) > 30) continue;
+    if (Math.hypot(sx - mx, sy - my) > lightR) continue;   // must be inside the light
+    sp.got = true; found++; totalFound++;
+    combo = (t - lastFind < 2000) ? combo + 1 : 1;
+    bestCombo = Math.max(bestCombo, combo);
+    lastFind = t;
+    const pts = 100 + (combo - 1) * 50;
+    score += pts; scoreV.textContent = score;
+    sndSpark(combo); burst(sx, sy, 22, 240);
+    addFloat(sx, sy, (combo > 1 ? 'x' + combo + '  ' : '') + '+' + pts, '#FFFB82');
+    if (found >= SPARKS_PER) {
+      score += 300; scoreV.textContent = score;
+      level++; lvlV.textContent = level;
+      sndLevel();
+      addFloat(W/2, H * 0.3, 'DEPTH ' + level + ' — the light shrinks…', '#2DFFCE');
+      layout();
+    }
+    return;
+  }
+  // spike?
+  for (const sk of spikes) {
+    const sx = sk.nx * W, sy = sk.ny * H;
+    if (Math.hypot(sx - x, sy - y) > 26) continue;
+    if (Math.hypot(sx - mx, sy - my) > lightR) continue;
+    sk.flash = 1; lamps--; renderLamps();
+    combo = 0; shake = 0.7;
+    sndCrack(); burst(sx, sy, 14, 160, true);
+    addFloat(sx, sy, 'OUCH! 💡-1', '#ff4d6a');
+    if (lamps <= 0) setTimeout(endRun, 600);
+    return;
+  }
+}
+window.addEventListener('pointermove', (e) => { mx = e.clientX; my = e.clientY; });
+window.addEventListener('pointerdown', (e) => {
+  mx = e.clientX; my = e.clientY;
+  if (e.target.closest('button') || e.target.closest('input')) return;
+  tryClick(e.clientX, e.clientY);
+});
+
+// ---------- fx ----------
+function burst(x, y, n, pow, dark){
+  const T = TORCHES[torchIdx];
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, sp = (0.3 + Math.random()) * pow;
+    particles.push({ x, y, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp, life: 1,
+      col: dark ? (i % 2 ? '#ff4d6a' : '#7a2dff') : (i % 2 ? T.a : T.b), r: 2 + Math.random() * 3 });
+  }
+}
+function addFloat(x, y, txt, col){ floats.push({ x, y, dy: 0, txt, col, life: 1 }); }
+
+// ---------- audio ----------
+let AC = null;
+document.getElementById('mute').textContent = muted ? '🔇' : '🔊';
+function ac(){ if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){} } if (AC && AC.state === 'suspended') AC.resume(); return AC; }
+function blip(freq, dur, type, vol, when){
+  if (muted || !ac()) return;
+  const t0 = AC.currentTime + (when || 0);
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'sine'; o.frequency.value = freq;
+  g.gain.setValueAtTime(vol || 0.08, t0);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(AC.destination); o.start(t0); o.stop(t0 + dur);
+}
+function sndSpark(c){ const f = 523 * Math.pow(1.12, Math.min(c, 10)); blip(f, 0.09, 'sine', 0.1); blip(f * 1.5, 0.14, 'sine', 0.08, 0.06); }
+function sndCrack(){ blip(180, 0.16, 'sawtooth', 0.12); blip(90, 0.3, 'sawtooth', 0.1, 0.1); }
+function sndLevel(){ blip(523, 0.12, 'triangle', 0.11); blip(659, 0.12, 'triangle', 0.11, 0.1); blip(784, 0.14, 'triangle', 0.11, 0.2); blip(1047, 0.28, 'sine', 0.09, 0.3); }
+document.getElementById('mute').addEventListener('click', (e) => {
+  e.stopPropagation();
+  muted = !muted; LS.set('lu_muted', muted);
+  document.getElementById('mute').textContent = muted ? '🔇' : '🔊';
+});
+
+// ---------- UI ----------
+const menuEl = document.getElementById('menu'), resultsEl = document.getElementById('results');
+const hudEl = document.getElementById('hud'), lampsEl = document.getElementById('lamps'), hintEl = document.getElementById('hint');
+const scoreV = document.getElementById('scoreV'), lvlV = document.getElementById('lvlV');
+function show(el, on){ el.classList.toggle('hidden', !on); }
+function toast(t){ const el = document.getElementById('toast'); el.textContent = t; el.style.opacity = 1; setTimeout(() => el.style.opacity = 0, 1800); }
+function fmtCd(){
+  const next = new Date(now); next.setUTCHours(24, 0, 0, 0);
+  let s = Math.max(0, Math.floor((next - Date.now()) / 1000));
+  return Math.floor(s / 3600) + 'h ' + String(Math.floor((s % 3600) / 60)).padStart(2, '0') + 'm';
+}
+setInterval(() => {
+  document.getElementById('cd1').textContent = fmtCd();
+  document.getElementById('cd2').textContent = fmtCd();
+}, 1000);
+function renderShop(){
+  const shop = document.getElementById('shop');
+  shop.innerHTML = '';
+  TORCHES.forEach((th, i) => {
+    const b = document.createElement('button');
+    b.className = 'sw' + (i === torchIdx ? ' sel' : '') + (owned.includes(i) ? '' : ' locked');
+    b.style.background = 'radial-gradient(circle at 40% 35%, ' + th.a + ', ' + th.b + ' 75%)';
+    b.textContent = owned.includes(i) ? '' : th.cost + '🪙';
+    b.title = th.n + ' torch';
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (owned.includes(i)) { torchIdx = i; LS.set('lu_torch', i); }
+      else if (coins >= th.cost) {
+        coins -= th.cost; owned.push(i); torchIdx = i;
+        LS.set('lu_coins', coins); LS.set('lu_owned', owned); LS.set('lu_torch', i);
+        toast('New torch: ' + th.n + '! 🔦');
+      } else toast('Need ' + (th.cost - coins) + ' more 🪙 — find more sparks!');
+      refreshMenu();
+    });
+    shop.appendChild(b);
+  });
+}
+function refreshMenu(){
+  document.getElementById('mTodayBest').textContent = todayBest;
+  document.getElementById('mAllBest').textContent = allBest;
+  document.getElementById('mStreakD').textContent = dayStreak + '🔥';
+  document.getElementById('streakChip').textContent = '🔥 ' + dayStreak + ' day' + (dayStreak > 1 ? 's' : '');
+  document.getElementById('coinTotal').textContent = '🪙 ' + coins;
+  document.getElementById('cd1').textContent = fmtCd();
+  renderShop();
+}
+document.getElementById('playBtn').addEventListener('click', newRun);
+document.getElementById('againBtn').addEventListener('click', newRun);
+document.getElementById('menuBtn').addEventListener('click', () => { state = 'menu'; show(resultsEl, false); refreshMenu(); show(menuEl, true); });
+
+// ---------- share ----------
+function shareText(){
+  return '🔦 LUMEN SURGE — depth ' + level + ', ' + score + ' pts, ' + totalFound + ' sparks found (best combo x' + bestCombo + '). The SAME sparks hide everywhere on Earth today, and the deeper you go the smaller your light. Beat me?';
+}
+document.getElementById('shareBtn').addEventListener('click', async () => {
+  const data = { title: 'LUMEN SURGE', text: shareText(), url: location.href };
+  if (navigator.share) { try { await navigator.share(data); } catch(e){} }
+  else { try { await navigator.clipboard.writeText(shareText() + ' ' + location.href); toast('Copied! Send it 😈'); } catch(e){ toast('Score: ' + score); } }
+});
+document.getElementById('copyBtn').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(shareText() + ' ' + location.href); toast('Link + score copied!'); } catch(e){ toast('Copy failed'); }
+});
+
+// ---------- render ----------
+refreshMenu();
+let last = performance.now();
+function frame(t){
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (t - last) / 1000); last = t;
+  shake = Math.max(0, shake - dt * 2);
+  if (state !== 'play') targetR = baseR() * 0.85;
+  lightR += (targetR - lightR) * Math.min(1, 3 * dt);
+  if (mx < -500) { mx = W / 2; my = H / 2; }
+
+  ctx.save();
+  if (shake > 0.01) { const s = shake * shake * 12; ctx.translate(Math.sin(t / 17) * s, Math.cos(t / 12) * s); }
+
+  // 1) hidden sky
+  ctx.drawImage(nebula, 0, 0, W, H);
+
+  // 2) scene objects (they live in the sky; darkness will hide them)
+  if (state === 'play') {
+    for (const sk of spikes) {
+      const x = sk.nx * W, y = sk.ny * H;
+      sk.flash = Math.max(0, sk.flash - dt * 2);
+      ctx.save();
+      ctx.translate(x, y); ctx.rotate(sk.rot + Math.sin(t / 1400 + sk.rot) * 0.15);
+      ctx.fillStyle = sk.flash > 0 ? 'rgba(255,77,106,.95)' : 'rgba(24,10,40,.96)';
+      ctx.strokeStyle = sk.flash > 0 ? '#ff8da5' : 'rgba(122,45,255,.7)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i < 8; i++) {
+        const a1 = i / 8 * Math.PI * 2, a2 = (i + 0.5) / 8 * Math.PI * 2;
+        ctx.lineTo(Math.cos(a1) * 10, Math.sin(a1) * 10);
+        ctx.lineTo(Math.cos(a2) * 20, Math.sin(a2) * 20);
+      }
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      // спящие глазки
+      ctx.strokeStyle = 'rgba(200,170,255,.8)'; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(-6, -1); ctx.lineTo(-2, -1); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(2, -1); ctx.lineTo(6, -1); ctx.stroke();
+      ctx.restore();
+    }
+    for (const sp of sparks) {
+      if (sp.got) continue;
+      const x = sp.nx * W, y = sp.ny * H;
+      const tw = 0.6 + 0.4 * Math.sin(t / 260 + sp.tw);
+      ctx.fillStyle = 'rgba(255,252,224,' + (0.85 * tw) + ')';
+      ctx.save(); ctx.translate(x, y); ctx.rotate(t / 2400 + sp.tw);
+      ctx.beginPath();
+      for (let i = 0; i < 4; i++) {
+        const a1 = i / 4 * Math.PI * 2, a2 = (i + 0.5) / 4 * Math.PI * 2;
+        ctx.lineTo(Math.cos(a1) * 9, Math.sin(a1) * 9);
+        ctx.lineTo(Math.cos(a2) * 3.2, Math.sin(a2) * 3.2);
+      }
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'rgba(45,255,206,' + (0.5 * tw) + ')';
+      ctx.beginPath(); ctx.arc(0, 0, 3, 0, 7); ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // 3) darkness with a light hole at the cursor (the hi3d reveal)
+  const dg = ctx.createRadialGradient(mx, my, 0, mx, my, Math.max(60, lightR));
+  dg.addColorStop(0, 'rgba(2,1,6,0)');
+  dg.addColorStop(0.55, 'rgba(2,1,6,.18)');
+  dg.addColorStop(0.85, 'rgba(2,1,6,.82)');
+  dg.addColorStop(1, 'rgba(2,1,6,.985)');
+  ctx.fillStyle = dg;
+  ctx.fillRect(-30, -30, W + 60, H + 60);
+  ctx.fillStyle = 'rgba(2,1,6,.985)';
+  // добить края за пределами градиента
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(-30, -30, W + 60, H + 60);
+  ctx.arc(mx, my, Math.max(60, lightR), 0, 7, true);
+  ctx.fill('evenodd');
+  ctx.restore();
+
+  // 4) torch glow (additive, hi3d gradient)
+  const T = TORCHES[torchIdx];
+  ctx.globalCompositeOperation = 'lighter';
+  const tg = ctx.createRadialGradient(mx, my, 0, mx, my, Math.max(60, lightR) * 0.9);
+  tg.addColorStop(0, T.a + '2e');
+  tg.addColorStop(0.5, T.b + '14');
+  tg.addColorStop(1, T.b + '00');
+  ctx.fillStyle = tg;
+  ctx.beginPath(); ctx.arc(mx, my, Math.max(60, lightR), 0, 7); ctx.fill();
+  ctx.globalCompositeOperation = 'source-over';
+
+  // 5) cursor core
+  ctx.fillStyle = T.a;
+  ctx.shadowBlur = 12; ctx.shadowColor = T.a;
+  ctx.beginPath(); ctx.arc(mx, my, 4, 0, 7); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.arc(mx, my, 9, 0, 7); ctx.stroke();
+
+  // particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 160 * dt; p.life -= dt * 1.4;
+    if (p.life <= 0) { particles.splice(i, 1); continue; }
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.fillStyle = p.col;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r * Math.max(0.2, p.life), 0, 7); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // floats
+  for (let i = floats.length - 1; i >= 0; i--) {
+    const f = floats[i];
+    f.dy += 55 * dt; f.life -= dt * 0.9;
+    if (f.life <= 0) { floats.splice(i, 1); continue; }
+    ctx.globalAlpha = Math.max(0, f.life);
+    ctx.font = '800 22px Bahnschrift, "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = f.col; ctx.shadowBlur = 8; ctx.shadowColor = f.col;
+    ctx.fillText(f.txt, f.x, f.y - 26 - f.dy);
+    ctx.shadowBlur = 0;
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
