@@ -239,6 +239,7 @@ let rng, sparks = [], spikes = [], level = 1, score = 0, lamps = MAX_LAMPS;
 let found = 0, totalFound = 0, combo = 0, bestCombo = 0, lastFind = 0;
 let particles = [], floats = [], shake = 0;
 let mx = -999, my = -999, lightR = 0, targetR = 0;
+let lx = -999, ly = -999;   // свет плывёт за курсором с инерцией (hi3d-мягкость)
 
 function baseR(){ return Math.min(W, H) * 0.30; }
 function layout(){
@@ -309,7 +310,7 @@ function tryClick(x, y){
     if (sp.got) continue;
     const sx = sp.nx * W, sy = sp.ny * H;
     if (Math.hypot(sx - x, sy - y) > 30) continue;
-    if (Math.hypot(sx - mx, sy - my) > lightR) continue;   // must be inside the light
+    if (Math.hypot(sx - lx, sy - ly) > lightR * 1.6) continue;   // в зоне мягкого света
     sp.got = true; found++; totalFound++;
     combo = (t - lastFind < 2000) ? combo + 1 : 1;
     bestCombo = Math.max(bestCombo, combo);
@@ -331,7 +332,7 @@ function tryClick(x, y){
   for (const sk of spikes) {
     const sx = sk.nx * W, sy = sk.ny * H;
     if (Math.hypot(sx - x, sy - y) > 26) continue;
-    if (Math.hypot(sx - mx, sy - my) > lightR) continue;
+    if (Math.hypot(sx - lx, sy - ly) > lightR * 1.6) continue;
     sk.flash = 1; lamps--; renderLamps();
     combo = 0; shake = 0.7;
     sndCrack(); burst(sx, sy, 14, 160, true);
@@ -453,6 +454,9 @@ function frame(t){
   if (state !== 'play') targetR = baseR() * 0.85;
   lightR += (targetR - lightR) * Math.min(1, 3 * dt);
   if (mx < -500) { mx = W / 2; my = H / 2; }
+  if (lx < -500) { lx = mx; ly = my; }
+  const lk = 1 - Math.exp(-9 * dt);
+  lx += (mx - lx) * lk; ly += (my - ly) * lk;
 
   ctx.save();
   if (shake > 0.01) { const s = shake * shake * 12; ctx.translate(Math.sin(t / 17) * s, Math.cos(t / 12) * s); }
@@ -502,41 +506,34 @@ function frame(t){
     }
   }
 
-  // 3) darkness with a light hole at the cursor (the hi3d reveal)
-  const dg = ctx.createRadialGradient(mx, my, 0, mx, my, Math.max(60, lightR));
-  dg.addColorStop(0, 'rgba(2,1,6,0)');
-  dg.addColorStop(0.55, 'rgba(2,1,6,.18)');
-  dg.addColorStop(0.85, 'rgba(2,1,6,.82)');
-  dg.addColorStop(1, 'rgba(2,1,6,.985)');
+  // 3) мягкая засветка (hi3d): небо чуть видно везде, у света — плавно проявляется, без резкой границы
+  const Rsoft = Math.max(180, lightR) * 2.7;
+  const dg = ctx.createRadialGradient(lx, ly, 0, lx, ly, Rsoft);
+  dg.addColorStop(0,    'rgba(2,1,6,.05)');
+  dg.addColorStop(0.3,  'rgba(2,1,6,.42)');
+  dg.addColorStop(0.65, 'rgba(2,1,6,.76)');
+  dg.addColorStop(1,    'rgba(2,1,6,.87)');
   ctx.fillStyle = dg;
   ctx.fillRect(-30, -30, W + 60, H + 60);
-  ctx.fillStyle = 'rgba(2,1,6,.985)';
-  // добить края за пределами градиента
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(-30, -30, W + 60, H + 60);
-  ctx.arc(mx, my, Math.max(60, lightR), 0, 7, true);
-  ctx.fill('evenodd');
-  ctx.restore();
 
-  // 4) torch glow (additive, hi3d gradient)
+  // 4) широкое дыхание света (additive bloom, деликатный hi3d-градиент)
   const T = TORCHES[torchIdx];
   ctx.globalCompositeOperation = 'lighter';
-  const tg = ctx.createRadialGradient(mx, my, 0, mx, my, Math.max(60, lightR) * 0.9);
-  tg.addColorStop(0, T.a + '2e');
-  tg.addColorStop(0.5, T.b + '14');
+  const tg = ctx.createRadialGradient(lx, ly, 0, lx, ly, Rsoft * 0.85);
+  tg.addColorStop(0, T.a + '1c');
+  tg.addColorStop(0.45, T.b + '0d');
   tg.addColorStop(1, T.b + '00');
   ctx.fillStyle = tg;
-  ctx.beginPath(); ctx.arc(mx, my, Math.max(60, lightR), 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(lx, ly, Rsoft, 0, 7); ctx.fill();
   ctx.globalCompositeOperation = 'source-over';
 
-  // 5) cursor core
+  // 5) cursor core — деликатная точка со свечением
   ctx.fillStyle = T.a;
-  ctx.shadowBlur = 12; ctx.shadowColor = T.a;
-  ctx.beginPath(); ctx.arc(mx, my, 4, 0, 7); ctx.fill();
+  ctx.shadowBlur = 14; ctx.shadowColor = T.a;
+  ctx.beginPath(); ctx.arc(mx, my, 3.2, 0, 7); ctx.fill();
   ctx.shadowBlur = 0;
-  ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.2;
-  ctx.beginPath(); ctx.arc(mx, my, 9, 0, 7); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(mx, my, 8, 0, 7); ctx.stroke();
 
   // particles
   for (let i = particles.length - 1; i >= 0; i--) {
