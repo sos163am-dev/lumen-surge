@@ -51,6 +51,17 @@
   .cta { font-family:var(--disp); font-stretch:condensed; font-size:24px; font-weight:800; color:#0a1410; background:linear-gradient(180deg,#fffce0,var(--sun) 30%,var(--aqua)); border:none; border-radius:44px; padding:18px 52px; cursor:pointer; letter-spacing:2px; box-shadow:0 0 24px rgba(45,255,206,.4), inset 0 2px 0 rgba(255,255,255,.6), inset 0 -3px 0 rgba(0,0,0,.25), 0 6px 16px rgba(0,0,0,.5); animation:pulse 1.6s ease-in-out infinite; }
   @keyframes pulse { 50% { transform:scale(1.04); box-shadow:0 0 34px rgba(255,251,130,.5), inset 0 2px 0 rgba(255,255,255,.6), inset 0 -3px 0 rgba(0,0,0,.25), 0 6px 16px rgba(0,0,0,.5);} }
   .howto { margin-top:12px; color:#8fa89f; font-size:12.5px; line-height:1.8; }
+  #quests { margin:0 0 12px; text-align:left; }
+  .q { display:flex; align-items:center; gap:10px; padding:8px 12px; border:1px solid rgba(45,255,206,.2); border-bottom-color:rgba(0,0,0,.6); border-radius:12px; background:rgba(255,255,255,.04); margin-bottom:6px; box-shadow:inset 0 1px 0 rgba(255,255,255,.05); }
+  .q .qi { font-size:17px; }
+  .q .qt { flex:1; font-size:12.5px; color:#cfe8de; }
+  .q .qt b { color:#fff; }
+  .q .qp { font-family:var(--mono); font-size:11px; color:#8fa89f; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .q .qr2 { font-size:12px; color:#ffe98a; font-weight:700; white-space:nowrap; }
+  .q.done { border-color:rgba(125,255,184,.5); background:rgba(125,255,184,.07); }
+  .q.done .qt { color:#7dffb8; text-decoration:line-through; }
+  .q .qbar { height:4px; border-radius:2px; background:rgba(255,255,255,.1); overflow:hidden; width:52px; }
+  .q .qbar i { display:block; height:100%; background:linear-gradient(90deg,var(--sun),var(--aqua)); }
   #shop { display:flex; gap:12px; margin-bottom:12px; justify-content:center; }
   .sw { width:46px; height:46px; border-radius:50%; cursor:pointer; border:2px solid rgba(255,255,255,.22); border-bottom-color:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; color:#ffe98a; text-shadow:0 1px 3px #000; padding:0; box-shadow:inset 0 1px 0 rgba(255,255,255,.15); }
   .sw.sel { outline:3px solid #fff; }
@@ -93,6 +104,7 @@
       <div class="stat"><div class="v" id="mStreakD">0</div><div class="l">day streak</div></div>
     </div>
     <div class="btnrow"><span class="btn2" id="coinTotal" style="cursor:default">🪙 0</span></div>
+    <div id="quests"></div>
     <div id="shop"></div>
     <div class="howto">❤×5 — a wasp sting makes Puff sneeze a smoke cloud and costs one<br>fill the lantern 🏮 with 10 fireflies to fly into a windier night · chain gulps for combo</div>
   </div>
@@ -103,6 +115,7 @@
     <div id="newbest"></div>
     <div id="rScore">0</div>
     <div class="tag" id="rMsg">Puff needs a nap.</div>
+    <div id="rQuests" style="color:#7dffb8;font-size:13px;margin-bottom:6px"></div>
     <div id="coinsEarned"></div>
     <div class="stats">
       <div class="stat"><div class="v" id="rNight">1</div><div class="l">nights</div></div>
@@ -221,6 +234,12 @@ let smoke = [], puffs = [], floats = [], shake = 0;
 let mx = -999, my = -999;
 const puff = { x: -999, y: -999, vx: 0, vy: 0, mood: 'fly', moodT: 0 };
 let stingCd = 0;
+let qData = LS.get('lu_quest_' + dateStr, null);
+const QUESTS = [
+  { id: 'flies5', icon: '✦', desc: 'Gulp <b>5 fireflies</b>', reward: 50, check: () => totalFlies >= 5 },
+  { id: 'combo3', icon: '⚡', desc: 'Hit <b>combo 3+</b>', reward: 75, check: () => bestCombo >= 3 },
+  { id: 'nights2', icon: '🌙', desc: 'Reach <b>night 2</b>', reward: 100, check: () => night >= 2 }
+];
 
 function windAt(){ return 0.6 + night * 0.35; }
 function layout(){
@@ -261,7 +280,9 @@ function endRun(){
   state = 'results';
   cgGameplayStop();
   show(hudEl, false); show(heartsEl, false); show(lanternEl, false); show(hintEl, false);
-  const earned = Math.floor(score / 25);
+  let earned = Math.floor(score / 25);
+  if (!qData) qData = {}; QUESTS.forEach(q => { if (q.check() && !qData[q.id]) { qData[q.id] = true; earned += q.reward; } });
+  LS.set('lu_quest_' + dateStr, qData);
   coins += earned; LS.set('lu_coins', coins);
   document.getElementById('coinsEarned').textContent = earned > 0 ? '+' + earned + ' 🪙  (total: ' + coins + ')' : '';
   let isNew = '';
@@ -274,6 +295,9 @@ function endRun(){
   document.getElementById('rCombo').textContent = 'x' + bestCombo;
   document.getElementById('rTodayBest').textContent = todayBest;
   document.getElementById('rStreak').textContent = dayStreak + '🔥';
+  if (!qData) qData = {};
+  const qDone = QUESTS.filter(q => qData[q.id]).length;
+  if (qDone > 0) document.getElementById('rQuests').textContent = '✓ ' + qDone + '/' + QUESTS.length + ' quests done today';
   const msgs = night >= 5 ? ['Puff is a legend now.', 'the wasps filed a complaint.', 'lantern-keeper supreme.']
              : night >= 3 ? ['Puff purrs happily.', 'the night knows your name.', 'solid flight!']
              : ['Puff needs a nap.', 'those wasps are SO grumpy.', 'one more flight — Puff believes in you.'];
@@ -407,6 +431,16 @@ function renderShop(){
     shop.appendChild(b);
   });
 }
+function renderQuests(){
+  if (!qData) qData = {};
+  const html = QUESTS.map(q => {
+    const done = qData[q.id];
+    const pct = Math.round((q.check() ? 1 : 0) * 100);
+    return '<div class="q' + (done ? ' done' : '') + '"><span class="qi">' + q.icon + '</span><span class="qt">' + q.desc + '</span>' +
+           '<span class="qbar"><i style="width:' + pct + '%"></i></span><span class="qr2">' + (done ? '✓' : q.reward + '🪙') + '</span></div>';
+  }).join('');
+  document.getElementById('quests').innerHTML = html;
+}
 function refreshMenu(){
   document.getElementById('mTodayBest').textContent = todayBest;
   document.getElementById('mAllBest').textContent = allBest;
@@ -414,7 +448,7 @@ function refreshMenu(){
   document.getElementById('streakChip').textContent = '🔥 ' + dayStreak + ' day' + (dayStreak > 1 ? 's' : '');
   document.getElementById('coinTotal').textContent = '🪙 ' + coins;
   document.getElementById('cd1').textContent = fmtCd();
-  renderShop();
+  renderShop(); renderQuests();
 }
 document.getElementById('playBtn').addEventListener('click', newRun);
 document.getElementById('againBtn').addEventListener('click', newRun);
